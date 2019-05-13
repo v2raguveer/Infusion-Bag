@@ -1,0 +1,41 @@
+library("Seurat")
+library("dplyr")
+library("ggplot2")
+library("sctransform")
+
+data_dir <- '/Users/vanitharaguveer/Documents/RData/cellrangerFiltered/s284_filterMatrix'
+list.files(data_dir)
+bag.284.10x = Read10X(data.dir = data_dir)
+class(bag.284.10x)
+dim(bag.284.10x)
+bag.284.10x[1:6, 1:6]
+genes_1_transcript <- apply(bag.284.10x, 2, function(x) sum(x>0))
+hist(genes_1_transcript, breaks=100, main="Distribution of Genes", xlab= "Genes with 1 tag")
+summary(genes_1_transcript)
+#hist(colSums(bag.284.10x), breaks =100, main="Expression per cell")
+bag.284.S = CreateSeuratObject(bag.284.10x, min.cells=3, min.features = 150)
+data.bag284 = GetAssayData(bag.284.S)
+bag.284.S[["percent.mt"]] <- PercentageFeatureSet(bag.284.S, pattern = "MT-")
+head(bag.284.S@meta.data)
+VlnPlot(bag.284.S, features = c("nCount_RNA", "nFeature_RNA", "percent.mt"), ncol = 3)
+plot1 <- FeatureScatter(bag.284.S, feature1 = "nCount_RNA", feature2 = "nFeature_RNA")
+plot2 <- FeatureScatter(bag.284.S, feature1 = "nFeature_RNA", feature2= "percent.mt")
+CombinePlots(plots=list(plot1, plot2))
+table(bag.284.S@meta.data$percent.mt <15 &bag.284.S@meta.data$nFeature_RNA<3500)
+bag.284.F <- subset(bag.284.S, subset = nFeature_RNA<3500 & percent.mt < 15)
+data.bag284= GetAssayData(bag.284.F)
+sbag <- SCTransform(bag.284.S, vars.to.regress = "percent.mt", verbose = FALSE)
+sbag1 <- RunPCA(sbag, verbose=FALSE)
+sbag1 <- RunUMAP(sbag1,reduction="pca", dims=1:30, verbose=FALSE)
+sbag1 <- FindNeighbors(sbag1, dims=1:30, verbose = FALSE)
+sbag1 <- FindClusters(sbag1, verbose=FALSE)
+DimPlot(sbag1, label = TRUE) + NoLegend()
+#CD8 T cell populations (naive, memory, effector): CD8A, GZMK, CCL5, GZMK
+#CD4 T cell populations (naive, memory, IFN-activated): S100A4, CCR7, IL32, ISG15
+#B cell cluster: TCL1A, FCER2
+#NK cells into CD56dim vs. bright clusters: XCL1 and FCGR3A
+VlnPlot(object = sbag1, features = c("CD8A", "GZMK"), pt.size = 0.2, ncol = 1)
+VlnPlot(object = sbag1, features = c("CD8A", "CCL5"), pt.size = 0.2, ncol = 1)
+VlnPlot(object = sbag1, features = c("CD8A", "GZMK", "CCL5"), pt.size = 0.2, ncol = 1)
+VlnPlot(object = sbag1, features = c("CD8A", "GZMK", "CCL5", "S100A4", "ANXA1", "CCR7", "CD45RA", "CD3D"), pt.size = 0.2, ncol = 4)
+FeaturePlot(object = sbag1, features = c("CD8A", "GZMK", "CCL5", "S100A4", "ANXA1", "CCR7"), pt.size = 0.2, ncol = 3)
